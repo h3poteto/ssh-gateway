@@ -20,6 +20,21 @@ package { 'wget':
   require => Exec['apt-get update'],
 }
 
+package { 'python3-pip':
+  ensure => installed,
+  require => Exec['apt-get update'],
+}
+
+exec { 'awscli':
+  command => "/usr/bin/pip3 install awscli --upgrade",
+  require => Package['python3-pip'],
+}
+
+package { 'awscli':
+  ensure => installed,
+  require => Exec['apt-get update'],
+}
+
 group { "developer":
   gid => 518,
   ensure => present
@@ -42,15 +57,29 @@ $users.each |String $user| {
     group => "developer",
   }
 
-  exec{ "github_key_${user}":
+  exec { "github_key_${user}":
     command => "/usr/bin/wget -q https://github.com/${user}.keys -O /home/${user}/.ssh/authorized_keys",
     creates => "/home/${user}/.ssh/authorized_keys",
+    require => File["/home/${user}/.ssh"],
   }
 
-  file{ "/home/${user}/.ssh/authorized_keys":
+  file { "/home/${user}/.ssh/authorized_keys":
     mode => "0600",
     owner => $user,
     group => "developer",
     require => Exec["github_key_${user}"],
   }
 }
+
+
+exec { "private_ssh_key":
+  command => "/usr/bin/aws ssm get-parameters --names ssh_private_key --with-decryption --region ap-northeast-1 --query \"Parameters[0].Value\" --output text > /usr/local/bin/.ssh.pem",
+  creates => "/usr/local/bin/.ssh.pem",
+}
+
+file { "/usr/local/bin/.ssh.pem":
+  mode => "0666",
+  require => Exec["private_ssh_key"],
+}
+
+
