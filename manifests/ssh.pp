@@ -20,6 +20,11 @@ package { 'wget':
   require => Exec['apt-get update'],
 }
 
+package { 'sudo':
+  ensure => installed,
+  require => Exec['apt-get update'],
+}
+
 package { 'python3-pip':
   ensure => installed,
   require => Exec['apt-get update'],
@@ -46,8 +51,9 @@ $users.each |String $user| {
     home => "/home/${$user}",
     managehome => true,
     gid => 518,
+    groups => ["developer", "sudo"],
     shell => "/bin/bash",
-    password => '!!'
+    password => '!!',
   }
 
   file { "/home/${user}/.ssh":
@@ -69,6 +75,13 @@ $users.each |String $user| {
     group => "developer",
     require => Exec["github_key_${user}"],
   }
+
+  $sudoers = "${user}    ALL=(ALL)    NOPASSWD: ALL"
+
+  file { "/etc/sudoers.d/${user}":
+    ensure => present,
+    content => $sudoers,
+  }
 }
 
 
@@ -81,5 +94,3 @@ file { "/usr/local/bin/.ssh.pem":
   mode => "0666",
   require => Exec["private_ssh_key"],
 }
-
-
